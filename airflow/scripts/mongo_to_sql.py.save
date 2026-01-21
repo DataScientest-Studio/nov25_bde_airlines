@@ -1,0 +1,197 @@
+import os
+from pymongo import MongoClient
+import psycopg2
+
+
+# =====================
+# ENV VARS
+# =====================
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017/")
+MONGO_DB = os.getenv("MONGO_DB", "DST_AIRLINES")
+MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "delays_raw")
+
+PG_HOST = os.getenv("PG_HOST", "postgres_data")
+PG_DB = os.getenv("PG_DB", "flight")
+PG_USER = os.getenv("PG_USER", "postgres")
+PG_PASSWORD = os.getenv("PG_PASSWORD", "postgres")
+PG_PORT = int(os.getenv("PG_PORT", "5432"))
+
+
+def pg_connect():
+    return psycopg2.connect(
+        host=PG_HOST, dbname=PG_DB, user=PG_USER, password=PG_PASSWORD, port=PG_PORT
+    )
+
+
+def upsert_airport(cur, iata, icao, name):
+    if not iata:
+        return None
+    cur.execute(
+        """
+        INSERT INTO airports (iata_code, icao_code, name)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (iata_code) DO UPDATE
+        SET
+          icao_code = COALESCE(EXCLUDED.icao_code, airports.icao_code),
+          name = COALESCE(EXCLUDED.name, airports.name)
+        RETURNING airport_id
+        """,
+        (iata, icao, name),
+    )
+    return cur.fetchone()[0]
+
+
+def upsert_airline(cur, iata, icao, name):
+    if not iata:
+        return None
+    cur.execute(
+        """
+        INSERT INTO airlines (iata_code, icao_code, name)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (iata_code) DO UPDATE
+        SET
+          icao_code = COALESCE(EXCLUDED.icao_code, airlines.icao_code),
+          name = COALESCE(EXCLUDED.name, airlines.name)
+        RETURNING airline_id
+        """,
+        (iata, icao, name),
+    )
+    return cur.fetchone()[0]
+
+
+def get_or_create_flight(cur, flight_iata, flight_icao, flight_number, airline_id, dep_airport_id, arr_airport_id):
+    cur.execute(
+        """
+        SELECT flight_id
+        FROM flights
+        WHERE flight_iata=%s AND dep_airport_id=%s AND arr_airport_id=%s
+        """,
+        (flight_iata, dep_airport_id, arr_airport_id),
+    )
+    row = cur.fetchone()
+    if row:
+        return row[0]
+
+    cur.execute(
+        """
+        INSERT INTO flights
+        (flight_iata, flight_icao, flight_number, airline_id, dep_airport_id, arr_airport_id)
+        VALUES (%s,%s,%s,%s,%s,%s)
+        RETURNING flight_id
+        """,
+        (flight_iata, flight_icao, flight_number, airline_id, dep_airport_id, arr_airport_id),
+    )
+    return cur.fetchone()[0]
+
+
+def main():
+    mongo = MongoClient(MONGO_URI)
+    col = mongo[MONGO_DB][MONGO_COLLECTION]
+
+    conn = pg_connect()
+    cur = conn.cursor()
+
+    ok = 0
+    err = 0
+
+    for doc in col.find():
+        try:
+            dep_airport_id = upsert_airport(
+                cur,
+                doc.get("dep_iata"),
+                doc.get("dep_icao"),
+                doc.get("dep_name"),
+            )
+            arr_airport_id = upsert_airport(
+                cur,
+                doc.get("arr_iata"),
+                doc.get("arr_icao"),
+                doc.get("arr_name"),
+            )
+
+            airline_id = upsert_airline(
+                cur,
+                doc.get("airline_iata"),
+                doc.get("airline_icao"),
+                doc.get("airline_name"),
+            )
+
+            flight_id = get_or_create_flight(
+                cur,
+                doc.get("flight_iata"),
+                doc.get("flight_icao"),
+                doc.get("flight_number"),
+                airline_id,
+                dep_airport_id,
+                arr_airport_id,
+
+            )
+
+            collected_at = (doc.get("_metadata") or {}).get("collected_at")
+
+            # Harmonisation champs retard (selon Airlabs)
+            dep_delay = doc.get("dep_delay")
+            arr_delay = doc.get("arr_delay")
+            total_delay = doc.get("total_delay")
+
+            # certains payloads utilisent delayed/dep_delayed/arr_delayed
+            if dep_delay is None:
+                dep_delay = doc.get("dep_delayed")
+            if arr_delay is None:
+                arr_delay = doc.get("arr_delayed")
+            if total_delay is None:
+                total_delay = doc.get("delayed")
+
+            cur.execute(
+                """
+                INSERT INTO flight_delays
+                (flight_id, status,
+                 dep_time_utc, dep_estimated_utc,
+                 arr_time_utc, arr_estimated_utc,
+                 dep_delay, arr_delay, total_delay,
+                 duration, collected_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (flight_id, dep_time_utc) DO UPDATE
+                SET
+                  status = EXCLUDED.status,
+                  dep_estimated_utc = EXCLUDED.dep_estimated_utc,
+                  arr_time_utc = EXCLUDED.arr_time_utc,
+                  arr_estimated_utc = EXCLUDED.arr_estimated_utc,
+                  dep_delay = EXCLUDED.dep_delay,
+                  arr_delay = EXCLUDED.arr_delay,
+                  total_delay = EXCLUDED.total_delay,
+                  duration = EXCLUDED.duration,
+                  collected_at = EXCLUDED.collected_at
+                """,
+                (
+                    flight_id,
+                    doc.get("status"),
+                    doc.get("dep_time_utc"),
+                    doc.get("dep_estimated_utc"),
+                    doc.get("arr_time_utc"),
+                    doc.get("arr_estimated_utc"),
+                    dep_delay,
+                    arr_delay,
+                    total_delay,
+                    doc.get("duration"),
+                    collected_at,
+                ),
+            )
+
+            conn.commit()
+            ok += 1
+
+        except Exception as e:
+            conn.rollback()
+            err += 1
+            print("❌ ETL error:", e)
+
+    cur.close()
+    conn.close()
+    mongo.close()
+
+    print(f"✅ ETL terminé. OK={ok} ERR={err}")
+
+
+if __name__ == "__main__":
+    main()

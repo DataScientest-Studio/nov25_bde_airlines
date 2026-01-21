@@ -1,0 +1,7 @@
+requests
+pymongo
+psycopg2-binary
+pandas
+scikit-learn
+joblib
+python-dotenv
