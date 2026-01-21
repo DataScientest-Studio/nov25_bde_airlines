@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Airflow
+airflow/logs/
+airflow/__pycache__/
+airflow/.airflowignore
+
+# Python
+__pycache__/
+*.pyc
+
+# Models
+models/*.pkl
+
+# Docker
+*.log
