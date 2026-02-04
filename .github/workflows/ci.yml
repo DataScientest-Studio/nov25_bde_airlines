@@ -18,11 +18,13 @@ jobs:
         run: |
           docker build -t airlines-airflow-test ./airflow-image
 
-      - name: Run pytest
+      - name: Run pytest (bypass Airflow entrypoint)
         run: |
           docker run --rm \
+            --entrypoint bash \
             -e AIRLABS_API_KEY=DUMMY_FOR_TESTS \
             -v "$GITHUB_WORKSPACE:/opt/airflow" \
             -w /opt/airflow \
             airlines-airflow-test \
-            python -m pytest -q /opt/airflow/airflow/test
+            -lc "python -m pytest -q airflow/test"
+
