@@ -26,5 +26,5 @@ jobs:
             -v "$GITHUB_WORKSPACE:/opt/airflow" \
             -w /opt/airflow \
             airlines-airflow-test \
-            -lc "python -m pytest -q airflow/test"
+            -lc "python -m pytest -q -p no:cacheprovider airflow/test"
 
