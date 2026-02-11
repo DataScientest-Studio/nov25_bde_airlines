@@ -23,27 +23,27 @@ Le projet repose sur :
 
 ### 1.Collecte
 
- -Collect_data.py interroge l’API AirLabs
+-Collect_data.py interroge l’API AirLabs
 
- -Données brutes stockées dans MongoDB avec métadonnées
+-Données brutes stockées dans MongoDB avec métadonnées
 
 ### 2.ETL
 
- -mongo_to_sql.py normalise les données
+-mongo_to_sql.py normalise les données
 
- -Upsert vers PostgreSQL (airports, airlines, flights, delays)
+-Upsert vers PostgreSQL (airports, airlines, flights, delays)
 
 ### 3.Machine Learning
 
- -train_ml.py entraîne un modèle à partir de PostgreSQL
+-train_ml.py entraîne un modèle à partir de PostgreSQL
  
- -Modèle sauvegardé au format .pkl
+-Modèle sauvegardé au format .pkl
 
 ### 4.Visualisation & Prédiction
 
- -Le dashboard Streamlit lit PostgreSQL et le modèle ML
+-Le dashboard Streamlit lit PostgreSQL et le modèle ML
  
- -KPIs, graphiques et prédictions de retard
+-KPIs, graphiques et prédictions de retard
 
 ## Architecture et composants : 
 ### Architecture globale du projet
@@ -72,7 +72,9 @@ L’automatisation du pipeline de données est assurée par Apache Airflow, perm
 - Orchestration avec Airflow :
 
 Le pipeline est implémenté sous forme de DAG Airflow, composé de tâches Python exécutées de manière séquentielle et/ou parallèle.
+
  	- DAG airlines_collect_etl : Collecte et transforme les données toutes les 30 minutes
+
 	- DAG airlines_train_daily : Entraine le modèle de les jours à 18h15
 
 
@@ -109,9 +111,6 @@ Structure du projet
     └── .env.example
 --------
 
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
-
-==============================
 Installation : 
 ==============================
 1- Cloner le repository 
