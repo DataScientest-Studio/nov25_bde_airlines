@@ -1,4 +1,4 @@
-Projet DST Airlines : 
+# Projet DST Airlines : 
 
 L'objectif de ce projet est de concevoir une plateforme complète qui permet de faire la collecte, le stockage, transformation, analyse et visualisation de données aériennes, basé sur des outils de data engineering et de machine learning. 
 
@@ -10,44 +10,48 @@ Le projet repose sur :
 - un dashboard interactif avec Streamlit
 - un modèle de Machine Learning pour la prédiction des retards
 
-Source des données :
+## Source des données :
 
 | Source | Access Method | Data |
 |-------|--------------|------|
 | AirLabs | https://airlabs.co/api/v9 | Flight delays, airlines, airports |
 
-Flux de données
+## Flux de données
 
 ![Architecture des données](docs/architecture_data.png)
 
 
-1.Collecte
+### 1.Collecte
 
--Collect_data.py interroge l’API AirLabs
--Données brutes stockées dans MongoDB avec métadonnées
+ -Collect_data.py interroge l’API AirLabs
 
-2.ETL
+ -Données brutes stockées dans MongoDB avec métadonnées
 
--mongo_to_sql.py normalise les données
--Upsert vers PostgreSQL (airports, airlines, flights, delays)
+### 2.ETL
 
-3.Machine Learning
+ -mongo_to_sql.py normalise les données
 
--train_ml.py entraîne un modèle à partir de PostgreSQL
--Modèle sauvegardé au format .pkl
+ -Upsert vers PostgreSQL (airports, airlines, flights, delays)
 
-4.Visualisation & Prédiction
+### 3.Machine Learning
 
--Le dashboard Streamlit lit PostgreSQL et le modèle ML
--KPIs, graphiques et prédictions de retard
+ -train_ml.py entraîne un modèle à partir de PostgreSQL
+ 
+ -Modèle sauvegardé au format .pkl
 
-Architecture et composants : 
+### 4.Visualisation & Prédiction
 
+ -Le dashboard Streamlit lit PostgreSQL et le modèle ML
+ 
+ -KPIs, graphiques et prédictions de retard
+
+## Architecture et composants : 
+### Architecture globale du projet
 ![Architecture globale du projet](docs/architecture_projet.png)
-
+### Architecture Docker
 ![Architecture Docker](docs/architecture_docker.png)
 
-Services Docker: 
+## Services Docker: 
 
 | Service | Description | Port |
 |-------|------------|------|
@@ -61,7 +65,7 @@ Services Docker:
 | MongoDB | Base NoSQL (données brutes) | 27017 |
 | PostgreSQL (Airflow) | Base metadata Airflow | 5432 (interne) |
 
-Automatisation et planification : 
+## Automatisation et planification : 
 
 L’automatisation du pipeline de données est assurée par Apache Airflow, permettant l’exécution planifiée, fiable et reproductible des différentes étapes : collecte, transformation, entraînement ML et mise à disposition des résultats.
 
@@ -107,9 +111,9 @@ Structure du projet
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
 
-
+==============================
 Installation : 
-
+==============================
 1- Cloner le repository 
 
 2- Créer un compte chez Airlabs.com pour avoir une api_key
